@@ -1,0 +1,38 @@
+.review-stage { background: var(--gray-100); color: var(--fg); padding: var(--s-07) 0 var(--s-09); }
+.review-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-05); flex-wrap: wrap; }
+.review-title { flex: 1; min-width: 240px; background: transparent; border: 0; border-bottom: 1px solid transparent; color: var(--fg); padding: 4px 0; }
+.review-title:hover, .review-title:focus { border-bottom-color: var(--gray-40); outline: none; }
+.review-title::placeholder { color: var(--fg); opacity: 1; }
+.review-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-06); align-items: start; }
+@media (max-width: 1000px) { .review-grid { grid-template-columns: 1fr; } }
+.review-media .player-box { max-height: 70vh; }
+.composer { display: flex; flex-direction: column; gap: var(--s-04); padding: var(--s-05); background: var(--bg-2); }
+.composer-quick { flex-wrap: wrap; }
+.quick { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; background: transparent; border: 1px solid var(--gray-30); color: var(--fg); font: 500 14px / 1 var(--font-sans); }
+.quick:hover { background: var(--white); color: var(--gray-100); border-color: var(--white); }
+.composer-form { display: flex; flex-direction: column; gap: var(--s-03); }
+.composer-input { flex: 1; min-width: 0; padding: 12px 14px; background: var(--gray-100); border: 1px solid var(--gray-30); color: var(--fg); }
+.composer-input:focus { outline: none; border-color: var(--white); }
+.notes { display: flex; flex-direction: column; gap: var(--s-04); max-height: 80vh; overflow-y: auto; }
+.note-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.note { display: grid; grid-template-columns: auto 1fr auto; gap: var(--s-04); align-items: start; padding: var(--s-04); background: var(--bg-2); border-left: 3px solid var(--gray-30); }
+.note-lands, .note-keep { border-left-color: var(--green); }
+.note-lost, .note-change { border-left-color: var(--red); }
+.note-drags { border-left-color: var(--peach); }
+.note-try { border-left-color: var(--lilac); }
+.note-time { padding: 4px 6px; background: var(--gray-20); border: 0; color: var(--fg); }
+.note-time:hover { background: var(--white); color: var(--gray-100); }
+.note-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.note-del { background: transparent; border: 0; color: var(--fg-3); padding: 4px; }
+.note-del:hover { color: var(--red); }
+.review-body { padding: var(--s-09) 0 var(--s-12); }
+.review-body-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-07); align-items: start; }
+.review-body .transcript-body { max-height: 420px; }
+.share-box { display: flex; flex-direction: column; gap: var(--s-04); padding: var(--s-06); border: 1px solid var(--stroke); }
+.kind-dot { display: inline-block; width: 8px; height: 8px; margin-right: 4px; background: var(--gray-50); vertical-align: middle; }
+.quick-lands .kind-dot, .note-lands .kind-dot, .note-keep .kind-dot { background: var(--green); }
+.quick-lost .kind-dot, .note-lost .kind-dot, .note-change .kind-dot { background: var(--red); }
+.quick-drags .kind-dot, .note-drags .kind-dot { background: var(--peach); }
+.note-try .kind-dot { background: var(--lilac); }
+.examples-btn { align-self: flex-start; }
+.review-stage .demo-note { max-width: none; }

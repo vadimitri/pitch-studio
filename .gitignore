@@ -1,0 +1,12 @@
+data/
+public/vendor/
+node_modules/
+dist/
+.env
+*.log
+# private: agent notes, spec and the e2e harness stay local (public repo)
+CLAUDE.md
+AGENTS.md
+SPEC.md
+.claude/
+test/e2e/

@@ -1,0 +1,35 @@
+{
+  "name": "pitch-studio",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "e2e": "node test/e2e/flow.mjs",
+    "typecheck": "tsc --noEmit",
+    "predev": "node scripts/vendor.mjs",
+    "prebuild": "node scripts/vendor.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1",
+    "@mediapipe/tasks-vision": "0.10.35",
+    "@phosphor-icons/react": "^2.1.10",
+    "mediabunny": "1.62.0",
+    "onnxruntime-web": "1.30.0",
+    "qrcode-generator": "1.4.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.1.2",
+    "playwright": "1.64.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

@@ -44,3 +44,6 @@ Setup: `Space` start · `1–6` brief · `T` eye-contact check. Recording: `Spac
 
 ## Credits
 Made by [vadimitri](https://github.com/vadimitri). Design: HPI Engine Neo design system; PP Neue Montreal is loaded from engine.hpi.de. Gaze model weights: [hysts/ptgaze](https://github.com/hysts/pytorch_mpiigaze_demo) (MIT), trained on ETH-XGaze (research use). Filler detection: Powered by [Desert Ant Labs](https://huggingface.co/desert-ant-labs/uhm). Not an official HPI service.
+
+## License
+Copyright (C) 2026 vadimitri. The code is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only): you may use, change and share it, but anything built on it, including a hosted version, must be released under the same licence with its source. The HPI Engine logo and design, the fonts and the third-party models keep their owners' terms (see Credits).

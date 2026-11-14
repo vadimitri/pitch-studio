@@ -6,12 +6,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "host": "vite --open \"/#/studio?host=1\"",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "node test/e2e/flow.mjs",
     "typecheck": "tsc --noEmit",
     "predev": "node scripts/vendor.mjs",
+    "prehost": "node scripts/vendor.mjs",
     "prebuild": "node scripts/vendor.mjs"
   },
   "dependencies": {

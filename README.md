@@ -26,6 +26,13 @@ bun run build        # typecheck + static build in dist/
 ```
 Routes: `#/` landing · `#/studio` · `#/takes` · `#/review/<id>`. Debug: `#/studio?debug=1` (vision overlay), `?asr=wasm` (force the WASM recogniser).
 
+## Host mode (moderating events)
+`bun run host` opens `#/studio?host=1`: the briefs become hosting drills.
+- **Your cards:** paste your script; `# Heading (1:30)` or a line of `---` starts a card, the time is its budget. While recording the card sits under the lens, `→` / `↓` / PageDown (presentation clickers) for the next, `←` back. The replay lists the time on each card against its budget and marks every switch on the timeline. Cards stay in this browser.
+- **Introduce a guest, Bridge, Award, Mishap:** a surprise prompt like the random topic, short target times.
+- **Live call:** choose a video; it plays muted while you commentate and in sync in the replay (this tab only).
+- Options add a surprise mishap once per take. Esc never discards a take in host mode, because clickers send it.
+
 ## The booth (Mac mini + TV + red button)
 ```sh
 bun run build && bun run preview -- --port 8080 --strictPort   # or any static server on localhost

@@ -53,5 +53,10 @@ One finding per line, → what Pitch Studio does with it. Mostly checked at abst
 - Chrome fires `start` up to 1.6 s late on the first H.264 recording while the file begins at `start()` → take time is measured from the call
 - WebKit sometimes reports a bogus duration (7,158,280 s) for a correct MP4 blob → the player clamps to the measured length; every take is remuxed (packet copy, [Mediabunny](https://mediabunny.dev)) for a clean, fast-start file
 
+## Host mode (moderating events)
+- Practice transfers best when it matches the conditions of the real test (transfer-appropriate processing). [Morris, Bransford & Franks 1977](https://doi.org/10.1016/S0022-5371%2877%2980016-9) → rehearse with your own cue cards and clicker; the card is the one extra live display, as on stage
+- Practising under mild anxiety kept expert performance from dropping under pressure. [Oudejans & Pijpers 2009](https://doi.org/10.1080/17470210802557702) → optional surprise mishap, once per take, off by default, jump to it in the replay
+- Esports casters learn mostly alone by reviewing their own casts; play-by-play builds hype on live action, colour commentary fills the gaps. [Kempe-Cook, Sher & Su 2019](https://doi.org/10.1145/3290605.3300795) → live call: commentate a muted clip, replay it in sync with your take
+
 ## Law
 - Emotion recognition in education is banned in the EU since 02/2025. EU AI Act Art. 5(1)(f), [FPF summary](https://fpf.org/blog/red-lines-under-eu-ai-act-unpacking-the-prohibition-of-emotion-recognition-in-the-workplace-and-education-institutions/) → behaviour only

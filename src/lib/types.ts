@@ -2,7 +2,10 @@
 
 export type UiLang = "en" | "de";
 export type SpeechLang = "en" | "de";
-export type BriefId = "free" | "elevator" | "startup" | "explain" | "random" | "hotseat";
+export type PitchBriefId = "free" | "elevator" | "startup" | "explain" | "random" | "hotseat";
+/** Host mode (`#/studio?host=1`): drills for moderating events. */
+export type HostBriefId = "cards" | "intro" | "bridge" | "call" | "award" | "mishap";
+export type BriefId = PitchBriefId | HostBriefId;
 export type FocusId = "auto" | "fillers" | "pace" | "gaze" | "time";
 export type AudienceMode = "friendly" | "tough" | "off";
 export type Prediction = "good" | "ok" | "bad";
@@ -15,6 +18,7 @@ export interface Settings {
   speechLang: SpeechLang;
   cue: boolean; // one-word live cue for the chosen focus, max every 25 s
   gestures: boolean;
+  surprise?: boolean; // host mode: one surprise mishap per take
 }
 
 /** Columnar samples at `hz`. Gaze angles in degrees relative to the calibrated lens direction:
@@ -116,4 +120,25 @@ export interface Take {
   title?: string;
   poster?: string; // small JPEG data URL for lists
   comments: Comment[];
+  host?: HostData;
+}
+
+/** One cue card; `budget` = planned seconds from "(1:30)" after its heading. */
+export interface CueCard {
+  title: string;
+  body: string;
+  budget?: number;
+}
+
+/** Card `i` shown from `t` (s). The first mark is always card 0 at 0. */
+export interface CardMark {
+  i: number;
+  t: number;
+}
+
+/** What host mode adds to a take. */
+export interface HostData {
+  cards?: { list: CueCard[]; marks: CardMark[] };
+  clip?: { name: string; offset: number }; // clip started `offset` s into the take
+  mishap?: { t: number; text: string };
 }

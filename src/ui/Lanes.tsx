@@ -8,13 +8,15 @@ import type { Timeline, Word } from "../lib/types";
 
 const C = {
   cam: "#2ef8e4", screen: "#41b0ff", down: "#f5ab85", away: "#cfa0f5", // Neo green, blue, peach, lilac
-  word: "#b5b5b5", filler: "#fd5f31", hang: "#c7e750", comment: "#ffffff", grid: "#212121",
+  word: "#b5b5b5", filler: "#fd5f31", hang: "#c7e750", comment: "#ffffff", grid: "#212121", section: "rgba(255,255,255,0.7)",
 };
 const LANE_Y = (i: number) => 4 + i * 26, LANE_H = 18;
 
-export function Lanes({ timeline, metrics, words, duration, time, onSeek, comments = [] }: {
+export function Lanes({ timeline, metrics, words, duration, time, onSeek, comments = [], sections = [] }: {
   timeline: Timeline; metrics: Metrics; words: Word[] | null; duration: number; time: Store<number>;
   onSeek: (t: number) => void; comments?: { t: number }[];
+  /** Host mode: times a new cue card came up, drawn as thin lines across both lanes. */
+  sections?: number[];
 }) {
   const t = useT();
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -47,13 +49,15 @@ export function Lanes({ timeline, metrics, words, duration, time, onSeek, commen
         for (const p of metrics.speech.pauses) if (p.kind === "hang") { x.fillStyle = C.hang; x.fillRect(X(p.s), sy + 3, X(p.e) - X(p.s), LANE_H - 6); }
         for (const f of metrics.speech.fillers.items) { x.fillStyle = C.filler; x.fillRect(X(f.t) - 1.5, sy, 3, LANE_H); }
       }
+      x.fillStyle = C.section;
+      for (const s of sections) if (s > 0) x.fillRect(X(s) - 0.5, 0, 1, LANE_Y(1) + LANE_H + 2);
       for (const c of comments) { x.fillStyle = C.comment; x.beginPath(); x.arc(X(c.t), H - 3, 2.5, 0, Math.PI * 2); x.fill(); }
     };
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(w);
     return () => ro.disconnect();
-  }, [timeline, metrics, words, duration, comments]);
+  }, [timeline, metrics, words, duration, comments, sections]);
 
   useEffect(() => time.subscribe(() => {
     if (head.current) head.current.style.left = `${Math.min(100, (time.get() / duration) * 100)}%`;

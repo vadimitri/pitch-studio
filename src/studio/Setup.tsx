@@ -2,13 +2,14 @@ import { useEffect, useRef, type RefObject } from "react";
 import { mmss, useT } from "../i18n";
 import { asrStatus } from "../lib/asr";
 import { useStore } from "../lib/store";
-import type { AudienceMode, FocusId, Settings, SpeechLang } from "../lib/types";
+import { cardsTarget } from "../lib/host";
+import type { AudienceMode, BriefId, CueCard, FocusId, HostBriefId, Settings, SpeechLang } from "../lib/types";
 import { DemoNote } from "../ui/DemoNote";
 import { IconAgain, IconArrowRight, IconPalm } from "../ui/icons";
 import { Bar, Button, Kbd, Segmented, Toggle } from "../ui/primitives";
 import { engineState, getAudio, getVision } from "./engine";
 import { buttonState, hardware } from "./hardware";
-import { BRIEF_TARGET, BRIEFS, TARGETS, pick, settingsStore } from "./settings";
+import { BRIEF_TARGET, BRIEFS, HOST_BRIEFS, HOST_TARGETS, TARGETS, clipStore, hostStore, pick, promptLabel, promptsFor, setClip, settingsStore } from "./settings";
 
 /** Positions the persistent camera <video> exactly over a slot element (it must never be re-mounted). */
 export function useCamSlot(camRef: RefObject<HTMLVideoElement | null>, slotRef: RefObject<HTMLElement | null>) {
@@ -82,8 +83,43 @@ function PairButton() {
     : <button className="btn btn-ghost btn-s" style={{ alignSelf: "flex-start", cursor: "pointer" }} onClick={() => void hardware.pair()}>Connect button (Web Serial)</button>;
 }
 
-export function Setup({ booth, settings, topic, camRef, onTopic, onStart, onCheck, hasTakes, onBackToReplay }: {
-  booth: boolean; settings: Settings; topic?: string;
+/** Host mode: cue cards pasted as text (kept in this browser), or the clip for a live call. */
+function HostBriefExtras({ brief, cards }: { brief: BriefId; cards: CueCard[] }) {
+  const t = useT();
+  const H = t.host;
+  const hostS = useStore(hostStore);
+  const clip = useStore(clipStore);
+  const file = useRef<HTMLInputElement>(null);
+  if (brief === "cards") {
+    const total = cardsTarget(cards);
+    return (
+      <fieldset className="field">
+        <legend className="mono-xs fg-2">{H.cardsLabel} <span className="fg-3">· {H.cardsCount(cards.length)}{total != null ? ` · ${mmss(total)} ${H.cardsFromCards}` : ""}</span></legend>
+        <textarea className="cards-input mono-s" rows={8} spellCheck={false} value={hostS.cards}
+          placeholder={"# Cold open (0:45)\n**First line, word for word.**\n\n# Welcome (3:00)\nwho we are · what tonight is · how long\n\n# Safety (8:00)\n…"}
+          onChange={(e) => hostStore.patch({ cards: e.target.value })} />
+        <span className="paragraph-xs fg-3">{H.cardsHint}</span>
+      </fieldset>
+    );
+  }
+  if (brief === "call") {
+    return (
+      <fieldset className="field">
+        <legend className="mono-xs fg-2">{H.clipLabel}</legend>
+        <div className="row gap-3">
+          <button className="btn btn-secondary btn-s" onClick={() => file.current?.click()}>{clip ? H.clipChange : H.clipPick}</button>
+          <span className="paragraph-s fg-2 clip-name">{clip?.name ?? H.clipNone}</span>
+        </div>
+        <input ref={file} type="file" accept="video/*" hidden onChange={(e) => { setClip(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+        <span className="paragraph-xs fg-3">{H.clipHint}</span>
+      </fieldset>
+    );
+  }
+  return null;
+}
+
+export function Setup({ booth, host = false, settings, cards = [], topic, camRef, onTopic, onStart, onCheck, hasTakes, onBackToReplay }: {
+  booth: boolean; host?: boolean; settings: Settings; cards?: CueCard[]; topic?: string;
   camRef: RefObject<HTMLVideoElement | null>; onTopic: (t: string) => void; onStart: () => void; onCheck: () => void;
   hasTakes: boolean; onBackToReplay: () => void;
 }) {
@@ -92,15 +128,23 @@ export function Setup({ booth, settings, topic, camRef, onTopic, onStart, onChec
   const slot = useRef<HTMLDivElement>(null);
   useCamSlot(camRef, slot);
   const eng = useStore(engineState);
-  const set = (p: Partial<Settings>) => settingsStore.patch(p);
+  const set = (p: Partial<Settings>) => {
+    if (!host) { settingsStore.patch(p); return; }
+    const { brief: b, targetSec, ...rest } = p;
+    if (b !== undefined || targetSec !== undefined) hostStore.patch({ ...(b ? { brief: b as HostBriefId } : {}), ...(targetSec !== undefined ? { targetSec } : {}) });
+    if (Object.keys(rest).length) settingsStore.patch(rest);
+  };
   const brief = settings.brief;
   const target = settings.targetSec;
+  const briefs: BriefId[] = host ? HOST_BRIEFS : BRIEFS;
+  const prompts = promptsFor(t, brief);
+  const fromCards = host && brief === "cards" ? cardsTarget(cards) : null;
 
-  const topicCard = (brief === "random" || brief === "hotseat") && topic && (
+  const topicCard = prompts && topic && (
     <div className={`topic-card ${brief}`}>
-      <span className="mono-xs">{brief === "random" ? S.topic : S.question}</span>
+      <span className="mono-xs">{promptLabel(t, brief)}</span>
       <p className="heading-s">{topic}</p>
-      <button className="btn btn-ghost btn-s" onClick={() => onTopic(pick(brief === "random" ? t.topics : t.questions, topic))}>
+      <button className="btn btn-ghost btn-s" onClick={() => onTopic(pick(prompts, topic))}>
         <IconAgain width={16} height={16} /> {S.reroll}
       </button>
     </div>
@@ -148,10 +192,11 @@ export function Setup({ booth, settings, topic, camRef, onTopic, onStart, onChec
 
       <section className="setup-right">
         <h1 className="heading-xxl">{S.setupTitle}</h1>
+        {host && <span className="tag tag-inverse host-badge">{t.host.badge}</span>}
         <fieldset className="field">
           <legend className="mono-xs fg-2">{S.brief}</legend>
           <div className="brief-grid">
-            {BRIEFS.map((b, i) => (
+            {briefs.map((b, i) => (
               <button key={b} className={`brief ${b === settings.brief ? "on" : ""}`} onClick={() => set({ brief: b, targetSec: BRIEF_TARGET[b] })}>
                 <span className="label-m">{t.briefs[b].label}</span>
                 <span className="paragraph-xs brief-hint">{t.briefs[b].hint}</span>
@@ -161,10 +206,13 @@ export function Setup({ booth, settings, topic, camRef, onTopic, onStart, onChec
           </div>
         </fieldset>
         {topicCard}
+        {host && <HostBriefExtras brief={brief} cards={cards} />}
         <fieldset className="field">
           <legend className="mono-xs fg-2">{S.target}</legend>
-          <Segmented size="s" value={settings.targetSec} onChange={(v) => set({ targetSec: v })}
-            options={TARGETS.map((x) => ({ value: x, label: <span className="tnum">{mmss(x)}</span> }))} label={S.target} />
+          {fromCards != null
+            ? <span className="label-m tnum">{mmss(fromCards)} <span className="paragraph-s fg-3">{t.host.cardsFromCards}</span></span>
+            : <Segmented size="s" value={settings.targetSec} onChange={(v) => set({ targetSec: v })}
+                options={(host ? HOST_TARGETS : TARGETS).map((x) => ({ value: x, label: <span className="tnum">{mmss(x)}</span> }))} label={S.target} />}
         </fieldset>
         <details className="setup-more">
           <summary className="mono-xs fg-2">
@@ -189,6 +237,7 @@ export function Setup({ booth, settings, topic, camRef, onTopic, onStart, onChec
           </div>
           <div className="field-row toggles">
             <Toggle checked={settings.cue} onChange={(v) => set({ cue: v })} label={S.cue} hint={S.cueHint} />
+            {host && <Toggle checked={!!settings.surprise} onChange={(v) => set({ surprise: v })} label={t.host.surprise} hint={t.host.surpriseHint} />}
           </div>
           <button className="btn btn-secondary btn-s check-btn" onClick={onCheck}>{t.check.button} <Kbd>T</Kbd></button>
         </details>

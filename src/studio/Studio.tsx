@@ -6,7 +6,8 @@ import { useT } from "../i18n";
 import { navigate } from "../lib/router";
 import { useStore } from "../lib/store";
 import { localStore } from "../lib/takes";
-import type { Prediction, Take } from "../lib/types";
+import { cardsTarget, parseCards } from "../lib/host";
+import type { HostData, Prediction, Settings, Take } from "../lib/types";
 import type { GestureName } from "../lib/vision";
 import { Calibrate } from "./Calibrate";
 import { Compare } from "./Compare";
@@ -22,7 +23,7 @@ import { Permission } from "./Permission";
 import { Predict } from "./Predict";
 import { Recording } from "./Recording";
 import { Replay } from "./Replay";
-import { pick, settingsStore } from "./settings";
+import { BRIEF_TARGET, HOST_BRIEFS, clipStore, hostStore, pick, promptLabel, promptsFor, settingsStore } from "./settings";
 import { Setup } from "./Setup";
 import { ShareSheet } from "./ShareSheet";
 import { StudioBar } from "./StudioBar";
@@ -52,8 +53,12 @@ export default function Studio({ query }: { query: URLSearchParams }) {
   const booth = query.get("booth") === "1";
   const camPos: CamPos = (["left", "right", "top"].includes(query.get("cam") ?? "") ? query.get("cam") : "top") as CamPos;
   const debug = query.get("debug") === "1";
+  const host = !booth && query.get("host") === "1";
   const eng = useStore(engineState);
   const settings = useStore(settingsStore);
+  const hostS = useStore(hostStore);
+  const clip = useStore(clipStore);
+  const cards = useMemo(() => parseCards(hostS.cards), [hostS.cards]);
   const [phase, setPhase] = useState<Phase>("permission");
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | undefined>();
@@ -76,7 +81,12 @@ export default function Studio({ query }: { query: URLSearchParams }) {
   const sharingRef = useRef(sharing);
   sharingRef.current = sharing;
 
-  const effective = settings;
+  // host mode swaps in its own brief and target; cards with a time on every card set the target themselves
+  const effective: Settings = useMemo(() => {
+    if (!host) return settings;
+    const fromCards = hostS.brief === "cards" ? cardsTarget(cards) : null;
+    return { ...settings, brief: hostS.brief, targetSec: fromCards ?? hostS.targetSec };
+  }, [host, settings, hostS.brief, hostS.targetSec, cards]);
   const current = eng.takes.find((x) => x.id === currentId) ?? null;
   const prev = current ? [...eng.takes].reverse().find((x) => x.n < current.n) ?? null : null;
   const gesturesOn = booth || settings.gestures;
@@ -106,26 +116,30 @@ export default function Studio({ query }: { query: URLSearchParams }) {
 
   useEffect(() => (camRef.current ? watchdog(camRef.current) : undefined), []);
 
-  // topic for random / hot-seat briefs
+  // topic for random / hot-seat briefs and the host drills
   useEffect(() => {
-    if (effective.brief === "random") setTopic((x) => (x && t.topics.includes(x) ? x : pick(t.topics)));
-    else if (effective.brief === "hotseat") setTopic((x) => (x && t.questions.includes(x) ? x : pick(t.questions)));
-    else setTopic(undefined);
+    const list = promptsFor(t, effective.brief);
+    setTopic((x) => (list ? (x && list.includes(x) ? x : pick(list)) : undefined));
   }, [effective.brief, t.lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── flow ──
   const start = useCallback(() => {
     if (phaseRef.current !== "setup" && phaseRef.current !== "replay" && phaseRef.current !== "compare") return;
+    if (host && effective.brief === "cards" && !cards.length) { say(t.host.cardsEmpty); setPhase("setup"); return; }
     bless(replayEl);
     replayEl.pause();
     tick(660, 0.06);
     const v = getVision();
     setPhase(v && !v.calibration() ? "calibrate" : "countdown");
-  }, [replayEl]);
+  }, [replayEl, host, effective.brief, cards.length, say, t]);
 
   const startRecording = useCallback(async () => {
     try {
-      active.current = await beginTake(effective, topic);
+      let hostData: HostData | undefined;
+      if (host && effective.brief === "cards") hostData = { cards: { list: cards, marks: [{ i: 0, t: 0 }] } };
+      else if (host && effective.brief === "call" && clip) hostData = { clip: { name: clip.name, offset: 0 } };
+      else if (host) hostData = {};
+      active.current = await beginTake(effective, topic, hostData);
       tick(1320, 0.12, 0.05);
       setPhase("recording");
     } catch (e) {
@@ -133,7 +147,7 @@ export default function Studio({ query }: { query: URLSearchParams }) {
       say(t.errors.record);
       setPhase("setup");
     }
-  }, [effective, topic, say, t]);
+  }, [effective, topic, say, t, host, cards, clip]);
 
   const stop = useCallback(async (discard = false) => {
     const a = active.current;
@@ -170,9 +184,10 @@ export default function Studio({ query }: { query: URLSearchParams }) {
   }, [phase, currentId]);
 
   const again = useCallback(() => {
-    if (effective.brief === "random") setTopic(pick(t.topics, topic)); // hot seat keeps its question
+    const list = promptsFor(t, effective.brief);
+    if (list && effective.brief !== "hotseat") setTopic(pick(list, topic)); // hot seat keeps its question
     start();
-  }, [effective.brief, start, t.topics, topic]);
+  }, [effective.brief, start, t, topic]);
 
   // Share = keep the take in this browser (review page + link), then show the share sheet.
   const share = useCallback(async () => {
@@ -262,7 +277,7 @@ export default function Studio({ query }: { query: URLSearchParams }) {
         return;
       }
       if (e.key === "Escape") {
-        if (p === "recording") void A.stop(true);
+        if (p === "recording") { if (!host) void A.stop(true); } // clickers send Esc; host mode never discards on it
         else if (p === "countdown" || p === "calibrate") setPhase("setup");
         else if (p === "compare") setPhase("replay");
         else if (p === "replay") A.done();
@@ -285,6 +300,11 @@ export default function Studio({ query }: { query: URLSearchParams }) {
       }
       if (p === "setup" && e.key.toLowerCase() === "t") { setPhase("check"); return; }
       if (p === "setup" && /^[1-6]$/.test(e.key)) {
+        if (host) {
+          const brief = HOST_BRIEFS[Number(e.key) - 1];
+          hostStore.patch({ brief, targetSec: BRIEF_TARGET[brief] });
+          return;
+        }
         const ids = ["free", "elevator", "startup", "explain", "random", "hotseat"] as const;
         const brief = ids[Number(e.key) - 1];
         settingsStore.patch({ brief });
@@ -300,7 +320,7 @@ export default function Studio({ query }: { query: URLSearchParams }) {
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); clearTimeout(longTimer); };
-  }, [booth]);
+  }, [booth, host]);
 
   // ── vision load: full speed only where gaze matters, a trickle elsewhere, nothing once you leave the studio ──
   useEffect(() => {
@@ -378,20 +398,20 @@ export default function Studio({ query }: { query: URLSearchParams }) {
 
       {phase === "permission" && <Permission state={eng.permission} onAllow={attach} />}
       {phase === "setup" && (
-        <Setup booth={booth} settings={settings} topic={topic} camRef={camRef}
+        <Setup booth={booth} host={host} settings={effective} cards={cards} topic={topic} camRef={camRef}
           onTopic={(x) => setTopic(x)} onStart={start}
           onCheck={() => setPhase("check")} hasTakes={eng.takes.length > 0} onBackToReplay={() => { if (eng.takes.length) { setCurrentId(eng.takes.at(-1)!.id); setPhase("replay"); } }} />
       )}
       {phase === "check" && <GazeCheck camPos={camPos} onDone={() => setPhase("setup")} />}
       {phase === "calibrate" && <Calibrate camPos={camPos} onDone={(ok) => { if (!ok) say(t.studio.calibFail); setPhase("countdown"); }} />}
-      {phase === "countdown" && <Countdown camPos={camPos} audience={effective.audience} topic={topic} isQuestion={effective.brief === "hotseat"} onDone={startRecording} />}
+      {phase === "countdown" && <Countdown camPos={camPos} audience={effective.audience} topic={topic} topicLabel={promptLabel(t, effective.brief)} onDone={startRecording} />}
       {phase === "recording" && (
-        <Recording camPos={camPos} settings={effective} topic={topic} booth={booth}
+        <Recording camPos={camPos} settings={effective} topic={topic} topicLabel={promptLabel(t, effective.brief)} booth={booth} host={host} clipUrl={clip?.url}
           getActive={() => active.current} onStop={(auto) => { if (auto) say(t.studio.autoStop); void stop(false); }} />
       )}
       {phase === "predict" && <Predict onPick={predict} gestures={gesturesOn} />}
       {phase === "replay" && current && (
-        <Replay take={current} prev={prev} video={replayEl} booth={booth} gestures={gesturesOn} deleteArmed={deleteArmed}
+        <Replay take={current} prev={prev} video={replayEl} clipUrl={clip && current.host?.clip?.name === clip.name ? clip.url : undefined} booth={booth} gestures={gesturesOn} deleteArmed={deleteArmed}
           onAgain={again} onCompare={compare} onShare={() => void share()} onDelete={del} onSetup={done} />
       )}
       {phase === "compare" && current && prev && <Compare a={prev} b={current} onBack={() => setPhase("replay")} />}

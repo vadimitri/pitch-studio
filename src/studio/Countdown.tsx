@@ -17,7 +17,7 @@ export function LensArrow({ camPos }: { camPos: CamPos }) {
   );
 }
 
-export function Countdown({ camPos, audience, topic, isQuestion, onDone }: { camPos: CamPos; audience: AudienceMode; topic?: string; isQuestion?: boolean; onDone: () => void }) {
+export function Countdown({ camPos, audience, topic, topicLabel, onDone }: { camPos: CamPos; audience: AudienceMode; topic?: string; topicLabel?: string; onDone: () => void }) {
   const t = useT();
   const [n, setN] = useState(3);
   const [p, setP] = useState(0);
@@ -43,7 +43,7 @@ export function Countdown({ camPos, audience, topic, isQuestion, onDone }: { cam
         {audience !== "off" && <Audience className="rec-audience aud-enter" mode={audience} count={6} rows={1} seed={9} />}
         {topic && (
           <div className="rec-topic">
-            <span className="mono-xs fg-3">{isQuestion ? t.studio.question : t.studio.topic}</span>
+            <span className="mono-xs fg-3">{topicLabel ?? t.studio.topic}</span>
             <p className="heading-s">{topic}</p>
           </div>
         )}

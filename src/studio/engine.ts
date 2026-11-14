@@ -6,7 +6,7 @@ import { startRecording, type Recording } from "../lib/media/recorder";
 import { remux } from "../lib/media/remux";
 import { createStore } from "../lib/store";
 import { uid } from "../lib/takes";
-import type { Settings, Take, Timeline } from "../lib/types";
+import type { HostData, Settings, Take, Timeline } from "../lib/types";
 import type { Vision } from "../lib/vision";
 
 export type PermissionState = "unknown" | "asking" | "granted" | "denied" | "insecure" | "nodevice" | "unsupported";
@@ -78,11 +78,13 @@ export interface ActiveTake {
   t0: number;
   timeline: Timeline;
   stopSampler: () => void;
+  /** Host mode: cards and their marks, clip offset, the surprise mishap (filled in while recording). */
+  host?: HostData;
 }
 
 const HZ = 10;
 
-export async function beginTake(settings: Settings, topic?: string): Promise<ActiveTake> {
+export async function beginTake(settings: Settings, topic?: string, host?: HostData): Promise<ActiveTake> {
   if (!stream || !audio) throw new Error("no media");
   const asr = beginTakeAsr(settings.speechLang);
   const timeline: Timeline = { hz: HZ, t: [], face: [], dH: [], dV: [], db: [], f0: [], hands: [], motion: [], smile: [], box: [] };
@@ -107,7 +109,7 @@ export async function beginTake(settings: Settings, topic?: string): Promise<Act
     timeline.smile.push(Math.round(v.smile * 100) / 100);
     timeline.box!.push(v.box);
   }, 1000 / HZ);
-  return { settings, topic, rec, asr, t0, timeline, stopSampler: () => clearInterval(id) };
+  return { settings, topic, rec, asr, t0, timeline, stopSampler: () => clearInterval(id), host };
 }
 
 /** Stops recording; returns the take immediately (video playable), transcription continues in the background. */
@@ -136,6 +138,7 @@ export async function endTake(active: ActiveTake, discard = false): Promise<Take
     analysis: { transcript: null, fillerHits: null, status: "transcribing" },
     saved: false,
     comments: [],
+    ...(active.host ? { host: active.host } : {}),
   };
   engineState.patch({ takes: [...prev, take] });
   active.asr.finish(pcm).then(
